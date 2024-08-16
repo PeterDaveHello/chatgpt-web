@@ -24,6 +24,7 @@ export function fetchChatAPIProcess<T = any>(
   params: {
     prompt: string
     options?: { conversationId?: string; parentMessageId?: string }
+    image?: File
     signal?: GenericAbortSignal
     onDownloadProgress?: (progressEvent: AxiosProgressEvent) => void },
 ) {
@@ -44,9 +45,19 @@ export function fetchChatAPIProcess<T = any>(
     }
   }
 
+  const formData = new FormData()
+  formData.append('prompt', params.prompt)
+  if (params.options) {
+    formData.append('options', JSON.stringify(params.options))
+  }
+  if (params.image) {
+    formData.append('image', params.image)
+  }
+
   return post<T>({
     url: '/chat-process',
-    data,
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
     signal: params.signal,
     onDownloadProgress: params.onDownloadProgress,
   })

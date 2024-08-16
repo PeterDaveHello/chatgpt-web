@@ -9,6 +9,7 @@ import { sendResponse } from '../utils'
 import { isNotEmptyString } from '../utils/is'
 import type { ApiModel, ChatContext, ChatGPTUnofficialProxyAPIOptions, ModelConfig } from '../types'
 import type { RequestOptions, SetProxyOptions, UsageResponse } from './types'
+import FormData from 'form-data'
 
 const { HttpsProxyAgent } = httpsProxyAgent
 
@@ -103,25 +104,38 @@ let api: ChatGPTAPI | ChatGPTUnofficialProxyAPI
 })()
 
 async function chatReplyProcess(options: RequestOptions) {
-  const { message, lastContext, process, systemMessage, temperature, top_p } = options
+  const { message, lastContext, process, systemMessage, temperature, top_p, image } = options
   try {
-    let options: SendMessageOptions = { timeoutMs }
+    let sendOptions: SendMessageOptions = { timeoutMs }
 
     if (apiModel === 'ChatGPTAPI') {
       if (isNotEmptyString(systemMessage))
-        options.systemMessage = systemMessage
-      options.completionParams = { model, temperature, top_p }
+        sendOptions.systemMessage = systemMessage
+      sendOptions.completionParams = { model, temperature, top_p }
     }
 
     if (lastContext != null) {
       if (apiModel === 'ChatGPTAPI')
-        options.parentMessageId = lastContext.parentMessageId
+        sendOptions.parentMessageId = lastContext.parentMessageId
       else
-        options = { ...lastContext }
+        sendOptions = { ...lastContext }
     }
 
-    const response = await api.sendMessage(message, {
-      ...options,
+    const formData = new FormData()
+    formData.append('model', model)
+    formData.append('messages[0][role]', 'system')
+    formData.append('messages[0][content]', 'You are a helpful assistant.')
+    formData.append('messages[1][role]', 'user')
+    formData.append('messages[1][content]', message)
+    if (image) {
+      formData.append('file', image.buffer, {
+        filename: image.originalname,
+        contentType: image.mimetype,
+      })
+    }
+
+    const response = await api.sendMessage(formData, {
+      ...sendOptions,
       onProgress: (partialResponse) => {
         process?.(partialResponse)
       },

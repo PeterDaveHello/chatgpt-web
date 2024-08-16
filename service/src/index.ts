@@ -5,9 +5,11 @@ import { chatConfig, chatReplyProcess, currentModel } from './chatgpt'
 import { auth } from './middleware/auth'
 import { limiter } from './middleware/limiter'
 import { isNotEmptyString } from './utils/is'
+import multer from 'multer'
 
 const app = express()
 const router = express.Router()
+const upload = multer()
 
 app.use(express.static('public'))
 app.use(express.json())
@@ -19,11 +21,12 @@ app.all('*', (_, res, next) => {
   next()
 })
 
-router.post('/chat-process', [auth, limiter], async (req, res) => {
+router.post('/chat-process', [auth, limiter, upload.single('image')], async (req, res) => {
   res.setHeader('Content-type', 'application/octet-stream')
 
   try {
     const { prompt, options = {}, systemMessage, temperature, top_p } = req.body as RequestProps
+    const image = req.file
     let firstChunk = true
     await chatReplyProcess({
       message: prompt,
@@ -35,6 +38,7 @@ router.post('/chat-process', [auth, limiter], async (req, res) => {
       systemMessage,
       temperature,
       top_p,
+      image,
     })
   }
   catch (error) {
